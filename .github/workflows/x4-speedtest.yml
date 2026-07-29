@@ -1,0 +1,46 @@
+name: X4 speed test 40MHz
+
+on:
+  push:
+    branches: [x4-speedtest-40mhz]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: latest
+          enable-cache: false
+      - name: Install PlatformIO Core
+        run: uv pip install --system -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.19.zip
+      - name: Enable 40 MHz X4 SPI overclock
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('platformio.ini')
+          s=p.read_text()
+          needle='  -DFREEINK_DEVICE_X3=1\n'
+          repl=needle+'  -DFREEINK_X4_OVERCLOCK_SPI\n'
+          if needle not in s:
+              raise SystemExit('target not found')
+          p.write_text(s.replace(needle,repl,1))
+          PY
+      - name: Build X4 firmware
+        run: pio run -e default
+      - name: Upload firmware
+        uses: actions/upload-artifact@v6
+        with:
+          name: x4-40mhz-firmware
+          path: .pio/build/default/firmware.bin
+          if-no-files-found: error
