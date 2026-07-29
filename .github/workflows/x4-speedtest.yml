@@ -3,6 +3,7 @@ name: X4 Fast-DU 40MHz + grayscale power fix
 on:
   push:
     branches: [x4-fastdu40-graypowerfix]
+  pull_request:
 
 permissions:
   contents: read
