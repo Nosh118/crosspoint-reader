@@ -1,0 +1,62 @@
+name: X4 speed-test firmware
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  build-x4-speedtest:
+    if: startsWith(github.head_ref, 'x4-speedtest-')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact 28 July baseline
+        uses: actions/checkout@v6
+        with:
+          ref: 3abb86923c7fac26db913baef353bf7289d8327f
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: latest
+          enable-cache: false
+      - name: Install PlatformIO Core
+        run: uv pip install --system -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.19.zip
+      - name: Apply requested X4 experiment
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          head=os.environ['HEAD_REF']
+          flags=[]
+          if 'fastdu' in head:
+              flags.append('-DFREEINK_X4_FAST_DU_SHORTCUT')
+          if '40mhz' in head:
+              flags.append('-DFREEINK_X4_OVERCLOCK_SPI')
+          if not flags:
+              raise SystemExit(f'No experiment flags recognized for {head}')
+          p=Path('platformio.ini')
+          s=p.read_text()
+          needle='  -DFREEINK_DEVICE_X3=1\n'
+          repl=needle+''.join(f'  {f}\n' for f in flags)
+          if needle not in s:
+              raise SystemExit('platformio.ini target not found')
+          p.write_text(s.replace(needle,repl,1))
+          print('Experiment:', head)
+          print('Flags:', flags)
+          PY
+      - name: Build X4 firmware
+        run: pio run -e default
+      - name: Upload firmware
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ github.head_ref }}-firmware
+          path: .pio/build/default/firmware.bin
+          if-no-files-found: error
