@@ -1,0 +1,51 @@
+name: X4 benchmark Fast-DU 40MHz
+
+on:
+  push:
+    branches: [x4-bench-fastdu40]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: latest
+          enable-cache: false
+      - name: Install PlatformIO Core
+        run: uv pip install --system -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.19.zip
+      - name: Enable X4 Fast-DU + 40MHz SPI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('platformio.ini')
+          s=p.read_text()
+          needle='  -DFREEINK_DEVICE_X3=1\n'
+          repl=needle+'  -DFREEINK_X4_FAST_DU_SHORTCUT\n  -DFREEINK_X4_OVERCLOCK_SPI\n'
+          if needle not in s:
+              raise SystemExit('target not found')
+          p.write_text(s.replace(needle,repl,1))
+          PY
+      - name: Instrument benchmark
+        env:
+          X4_BENCH_VARIANT: FASTDU40
+        run: python scripts/x4_benchmark_instrument.py
+      - name: Build X4 firmware
+        run: pio run -e default
+      - name: Upload firmware
+        uses: actions/upload-artifact@v6
+        with:
+          name: x4-bench-fastdu40-firmware
+          path: .pio/build/default/firmware.bin
+          if-no-files-found: error

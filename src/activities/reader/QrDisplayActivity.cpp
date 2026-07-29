@@ -16,14 +16,16 @@ void QrDisplayActivity::onEnter() {
 void QrDisplayActivity::onExit() { Activity::onExit(); }
 
 void QrDisplayActivity::loop() {
+  int x = 0;
+  int y = 0;
   if (mappedInput.wasReleased(MappedInputManager::Button::Back) ||
-      mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    onGoBack();
+      mappedInput.wasReleased(MappedInputManager::Button::Confirm) || mappedInput.wasScreenTapped(x, y)) {
+    finish();
     return;
   }
 }
 
-void QrDisplayActivity::render(Activity::RenderLock&&) {
+void QrDisplayActivity::render(RenderLock&&) {
   renderer.clearScreen();
   auto metrics = UITheme::getInstance().getMetrics();
   const auto pageWidth = renderer.getScreenWidth();
